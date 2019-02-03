@@ -16,7 +16,7 @@ public:
     RgbColor color;
 
     Sphere(const Vec3d &c, double r, RgbColor color);
-    bool intersect(Vec3d p, Vec3d ray);
+    bool intersect(Vec3d start_point, Vec3d direction, double &distance);
 };
 
 

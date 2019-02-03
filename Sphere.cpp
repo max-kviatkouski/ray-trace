@@ -4,20 +4,21 @@
 
 #include "Sphere.h"
 #include <iostream>
+#include <cmath>
 
 Sphere::Sphere(const Vec3d &c, double r, RgbColor color) : c(c), r(r), color(color) {}
 
-bool Sphere::intersect(Vec3d p, Vec3d ray) {
+bool Sphere::intersect(Vec3d start_point, Vec3d direction, double &distance) {
 #ifdef TRACE_INTERSECT
     std::cout << "Sphere center: " << c.to_string() << " Sphere radius: " << r << std::endl;
-    std::cout << "PoV: " << p.to_string() << std::endl;
+    std::cout << "PoV: " << start_point.to_string() << std::endl;
 #endif
     //vector from POV to center of the sphere
-    Vec3d v = c - p;
+    Vec3d start_to_center = c - start_point;
 #ifdef TRACE_INTERSECT
-    std::cout << "Vector to sphere center: " << v.to_string() << std::endl;
+    std::cout << "Vector to sphere center: " << start_to_center.to_string() << std::endl;
 #endif
-    if (ray * v <= 0) {
+    if (direction * start_to_center <= 0) {
         //center of the sphere is behind POV
 #ifdef TRACE_INTERSECT
         std::cout << "sphere is behind pov" << std::endl;
@@ -26,12 +27,15 @@ bool Sphere::intersect(Vec3d p, Vec3d ray) {
     } else {
         //calculate projection and then rejection
         //if rejection length is <= sphere radius - we have intersection
-        Vec3d proj = ray.normalize() * (v * ray.normalize());
-        Vec3d rej = v - proj;
-        bool result = rej.getLength() <= r;
+        Vec3d projection = direction.normalize() * (start_to_center * direction.normalize());
+        Vec3d rejection = -start_to_center + projection;
+        Vec3d proj_p = c + rejection;
+        float half_chorde = sqrt(r*r - rejection.getLength()*rejection.getLength());
+        distance = (proj_p - start_point).getLength() - half_chorde;
+        bool result = rejection.getLength() <= r;
 #ifdef TRACE_INTERSECT
-        std::cout << "Projection vector: " << proj.to_string() << std::endl;
-        std::cout << "Rejection vector: " << rej.to_string() << "  length: " << rej.getLength() << std::endl;
+        std::cout << "Projection vector: " << projection.to_string() << std::endl;
+        std::cout << "Rejection vector: " << rejection.to_string() << "  length: " << rejection.getLength() << std::endl;
         if (result) {
             std::cout << "intersection for pixel" << std::endl;
         } else {

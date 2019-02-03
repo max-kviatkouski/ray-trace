@@ -3,7 +3,7 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 
 #include "stb_image_write.h"
-#include <math.h>
+#include <cmath>
 #include "Vec3d.h"
 #include "Sphere.h"
 #include <vector>
@@ -19,9 +19,11 @@ double get_distance_to_plane(int fov, int plane_width);
 std::vector<Vec3d> get_norm_vectors(Vec3d v);
 
 //calculate normalized ray vector corresponding to a pixel with coordinates (x, y)
-Vec3d vector_for_plane_pixel(int x, int y, int width, int height, std::vector<Vec3d> norms, double d);
-RgbColor generate_gradient(const int x, const int y, const int WIDTH, const int HEIGHT);
-void save_image(const char *filename, const int WIDTH, const int HEIGHT, std::vector<RgbColor> image);
+Vec3d vector_for_plane_pixel(int _x, int _y, int width, int height, std::vector<Vec3d> norms, double d);
+
+RgbColor generate_gradient(int x, int y, int WIDTH, int HEIGHT);
+
+void save_image(const char *filename, int WIDTH, int HEIGHT, std::vector<RgbColor> image);
 
 const int MAX_CHANNEL = 255;
 
@@ -33,21 +35,41 @@ int main() {
     const int HEIGHT = 600;
     const int WIDTH = 900;
 
-    Sphere S1 = Sphere(Vec3d(0, 0, -600), 100.0, RgbColor(200, 0, 0));
-    std::vector<RgbColor> image(WIDTH*HEIGHT);
+    std::vector<RgbColor> image(WIDTH * HEIGHT);
+    std::vector<Sphere> scene = {
+            Sphere(Vec3d(0, 0, -600), 100.0, RgbColor(200, 0, 0)),
+            Sphere(Vec3d(150, 0, -500), 50.0, RgbColor(100, 18, 10)),
+            Sphere(Vec3d(0, 0, -550), 75.0, RgbColor(100, 18, 180))
+    };
 
     const char *filename = "test.png";
     std::vector<Vec3d> norms = get_norm_vectors(VIEW_RAY);
     double const DISTANCE = get_distance_to_plane(FOV, WIDTH);
+
+    ////RENDERING PART
     for (int i = 0; i < HEIGHT; i++) {
         for (int j = 0; j < WIDTH; j++) {
-            if (S1.intersect(VIEW_POS, vector_for_plane_pixel(j, i, WIDTH, HEIGHT, norms, DISTANCE))) {
-                image[i * WIDTH + j] = S1.color;
+            std::vector<Sphere>::iterator it;
+            double min_dist = -1.0;
+            RgbColor color;
+            for (it = scene.begin(); it != scene.end(); it++) {
+                Sphere s = *it;
+                double dist;
+                if (s.intersect(VIEW_POS, vector_for_plane_pixel(j, i, WIDTH, HEIGHT, norms, DISTANCE), dist)) {
+                    if (min_dist < 0 || dist < min_dist) {
+                        min_dist = dist;
+                        color = s.color;
+                    }
+                };
+            }
+            if (min_dist >= 0) {
+                image[i * WIDTH + j] = color;
             } else {
                 image[i * WIDTH + j] = generate_gradient(j, i, WIDTH, HEIGHT);
             }
         }
     }
+    ////RENDERING PART
     std::cout << "Distance to the plane: " << DISTANCE << std::endl;
     std::cout << "Normal vectors nX, nY, nZ:" << std::endl;
     for (int i; i < 3; i++) {
@@ -92,16 +114,16 @@ Vec3d vector_for_plane_pixel(int _x, int _y, int width, int height, std::vector<
 RgbColor generate_gradient(const int x, const int y, const int WIDTH, const int HEIGHT) {
     int i = y;
     int j = x;
-    return RgbColor(
-            round(MAX_CHANNEL * static_cast<double>(i) / HEIGHT),
-            round(MAX_CHANNEL * (1 - static_cast<double>(i + j) / (HEIGHT + WIDTH))),
-            round(MAX_CHANNEL * static_cast<double>(j) / WIDTH)
-    );
+    return {
+            static_cast<char>(round(MAX_CHANNEL * static_cast<double>(i) / HEIGHT)),
+            static_cast<char>(round(MAX_CHANNEL * (1 - static_cast<double>(i + j) / (HEIGHT + WIDTH)))),
+            static_cast<char>(round(MAX_CHANNEL * static_cast<double>(j) / WIDTH))\
+    };
 }
 
 void save_image(const char *filename, const int WIDTH, const int HEIGHT, std::vector<RgbColor> image) {
     const int BYTES_PER_PIXEL = 3;
-    unsigned char *img_data = (unsigned char *) malloc(WIDTH * HEIGHT * BYTES_PER_PIXEL);
+    auto *img_data = (unsigned char *) malloc(WIDTH * HEIGHT * BYTES_PER_PIXEL);
     for (int i = 0; i < HEIGHT; i++) {
         for (int j = 0; j < WIDTH; j++) {
             int pixel_array_pos = i * WIDTH + j;
