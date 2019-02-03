@@ -37,12 +37,16 @@ int main() {
     const int HEIGHT = 600;
     const int WIDTH = 900;
 
-    LightSource LIGHT = LightSource(Vec3d(0, 450, 0), 1.5);
+    std::vector<LightSource> lights = {
+        LightSource(Vec3d(0, 450, 0), 1.5),
+        LightSource(Vec3d(400, 0, -500), 0.7),
+        LightSource(Vec3d(-1000, -500, -400), 0.7)
+    };
 
     std::vector<RgbColor> image(WIDTH * HEIGHT);
     std::vector<Sphere> scene = {
             Sphere(Vec3d(-150, 200, -550), 150.0, RgbColor(0.4, 0.1, 0.3)),
-            Sphere(Vec3d(0, 0, -600), 100.0, RgbColor(0.8, 0, 0)),
+            Sphere(Vec3d(0, 0, -600), 100.0, RgbColor(0.6, 0.2, 0)),
             Sphere(Vec3d(150, 0, -500), 50.0, RgbColor(0.5, 0.1, 0.7))
     };
 
@@ -72,9 +76,14 @@ int main() {
             }
             if (min_dist >= 0) {
                 //calculate light
-                Vec3d intersection_norm = (visible_sphere.c - visible_intersection_point).normalize();
-                Vec3d intersection_to_light = (visible_intersection_point - LIGHT.p).normalize();
-                image[i * WIDTH + j] = visible_sphere.color * LIGHT.intensity * std::max(0.0, intersection_norm * intersection_to_light);
+                std::vector<LightSource>::iterator light_it;
+                double intensity = 0;
+                for (light_it = lights.begin(); light_it != lights.end(); light_it++) {
+                    Vec3d intersection_norm = (visible_sphere.c - visible_intersection_point).normalize();
+                    Vec3d intersection_to_light = (visible_intersection_point - light_it->p).normalize();
+                    intensity += light_it->intensity * std::max(0.0, intersection_norm * intersection_to_light);
+                }
+                image[i * WIDTH + j] = visible_sphere.color * intensity;
             } else {
                 image[i * WIDTH + j] = generate_gradient(j, i, WIDTH, HEIGHT);
             }
