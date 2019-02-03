@@ -9,7 +9,7 @@
 class RgbColor {
 public:
     char r,g,b;
-
+    RgbColor();
     RgbColor(char r, char g, char b);
 };
 
