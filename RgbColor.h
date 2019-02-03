@@ -8,9 +8,12 @@
 
 class RgbColor {
 public:
-    char r,g,b;
+    double r,g,b;
     RgbColor();
-    RgbColor(char r, char g, char b);
+    RgbColor(double r, double g, double b);
+    RgbColor operator*(double intensity);
+    void toByteColor(char &r, char &g, char &b);
+    char* to_string();
 };
 
 

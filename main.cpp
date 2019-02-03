@@ -6,8 +6,10 @@
 #include <cmath>
 #include "Vec3d.h"
 #include "Sphere.h"
+#include "LightSource.h"
 #include <vector>
 #include <array>
+#include <algorithm>
 
 double get_distance_to_plane(int fov, int plane_width);
 
@@ -35,11 +37,13 @@ int main() {
     const int HEIGHT = 600;
     const int WIDTH = 900;
 
+    LightSource LIGHT = LightSource(Vec3d(0, 450, 0), 1.5);
+
     std::vector<RgbColor> image(WIDTH * HEIGHT);
     std::vector<Sphere> scene = {
-            Sphere(Vec3d(0, 0, -600), 100.0, RgbColor(200, 0, 0)),
-            Sphere(Vec3d(150, 0, -500), 50.0, RgbColor(100, 18, 10)),
-            Sphere(Vec3d(0, 0, -550), 75.0, RgbColor(100, 18, 180))
+            Sphere(Vec3d(-150, 200, -550), 150.0, RgbColor(0.4, 0.1, 0.3)),
+            Sphere(Vec3d(0, 0, -600), 100.0, RgbColor(0.8, 0, 0)),
+            Sphere(Vec3d(150, 0, -500), 50.0, RgbColor(0.5, 0.1, 0.7))
     };
 
     const char *filename = "test.png";
@@ -51,19 +55,26 @@ int main() {
         for (int j = 0; j < WIDTH; j++) {
             std::vector<Sphere>::iterator it;
             double min_dist = -1.0;
-            RgbColor color;
+            Sphere visible_sphere;
+            Vec3d visible_intersection_point(0,0,0);
             for (it = scene.begin(); it != scene.end(); it++) {
                 Sphere s = *it;
                 double dist;
-                if (s.intersect(VIEW_POS, vector_for_plane_pixel(j, i, WIDTH, HEIGHT, norms, DISTANCE), dist)) {
+                Vec3d intersection_point(0,0,0);
+                if (s.intersect(VIEW_POS, vector_for_plane_pixel(j, i, WIDTH, HEIGHT, norms, DISTANCE), intersection_point)) {
+                    dist = (intersection_point - VIEW_POS).getLength();
                     if (min_dist < 0 || dist < min_dist) {
                         min_dist = dist;
-                        color = s.color;
+                        visible_intersection_point = Vec3d(intersection_point);
+                        visible_sphere = s;
                     }
                 };
             }
             if (min_dist >= 0) {
-                image[i * WIDTH + j] = color;
+                //calculate light
+                Vec3d intersection_norm = (visible_sphere.c - visible_intersection_point).normalize();
+                Vec3d intersection_to_light = (visible_intersection_point - LIGHT.p).normalize();
+                image[i * WIDTH + j] = visible_sphere.color * LIGHT.intensity * std::max(0.0, intersection_norm * intersection_to_light);
             } else {
                 image[i * WIDTH + j] = generate_gradient(j, i, WIDTH, HEIGHT);
             }
@@ -115,9 +126,9 @@ RgbColor generate_gradient(const int x, const int y, const int WIDTH, const int 
     int i = y;
     int j = x;
     return {
-            static_cast<char>(round(MAX_CHANNEL * static_cast<double>(i) / HEIGHT)),
-            static_cast<char>(round(MAX_CHANNEL * (1 - static_cast<double>(i + j) / (HEIGHT + WIDTH)))),
-            static_cast<char>(round(MAX_CHANNEL * static_cast<double>(j) / WIDTH))\
+            static_cast<double>(i) / HEIGHT,
+            1 - static_cast<double>(i + j) / (HEIGHT + WIDTH),
+            static_cast<double>(j) / WIDTH
     };
 }
 
@@ -129,9 +140,11 @@ void save_image(const char *filename, const int WIDTH, const int HEIGHT, std::ve
             int pixel_array_pos = i * WIDTH + j;
             int byte_array_pos = pixel_array_pos * BYTES_PER_PIXEL;
             RgbColor pixel = image[pixel_array_pos];
-            img_data[byte_array_pos] = pixel.r;
-            img_data[byte_array_pos + 1] = pixel.g;
-            img_data[byte_array_pos + 2] = pixel.b;
+            char r, g, b;
+            pixel.toByteColor(r, g, b);
+            img_data[byte_array_pos] = r;
+            img_data[byte_array_pos + 1] = g;
+            img_data[byte_array_pos + 2] = b;
         }
     }
     stbi_write_png(filename, WIDTH, HEIGHT, BYTES_PER_PIXEL, img_data, BYTES_PER_PIXEL * WIDTH);
